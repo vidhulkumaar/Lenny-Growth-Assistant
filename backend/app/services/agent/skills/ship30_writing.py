@@ -64,13 +64,16 @@ class Ship30WritingSkill:
         evidence_str = ""
         is_empty_evidence = False
 
-        # 1. Retrieve evidence if documents are selected
-        if doc_ids:
+        include_transcripts = getattr(writing_input, "include_transcripts", True)
+
+        # 1. Retrieve evidence if documents are selected or transcripts are enabled
+        if doc_ids or include_transcripts:
             retrieval_result = RetrievalTool.execute(
                 db=db,
                 query=topic,
                 document_ids=doc_ids,
                 top_k=settings.AGENT_TOP_K,
+                include_transcripts=include_transcripts,
             )
 
             if retrieval_result.is_empty or not retrieval_result.chunks:
@@ -81,8 +84,9 @@ class Ship30WritingSkill:
                 for chunk in retrieval_result.chunks:
                     # Sanitize any accidental XML tag closing to prevent jailbreaks
                     sanitized_content = chunk.content.replace("</evidence>", "[evidence_end]")
+                    source_attr = f' page="{chunk.page_number}"' if chunk.page_number is not None else ' source="transcript"'
                     evidence_blocks.append(
-                        f"<document name=\"{chunk.filename}\" page=\"{chunk.page_number}\">\n"
+                        f"<document name=\"{chunk.filename}\"{source_attr}>\n"
                         f"{sanitized_content}\n"
                         f"</document>"
                     )
@@ -99,7 +103,7 @@ class Ship30WritingSkill:
             )
 
         # 3. Build Prompt
-        if doc_ids and evidence_str:
+        if (doc_ids or include_transcripts) and evidence_str:
             prompt = f"""Write a Ship 30 for 30 {format_style} based on the following specifications:
 
 TOPIC: {topic}
@@ -114,7 +118,7 @@ DESIRED TONE: {tone}
 INSTRUCTIONS:
 - Craft a compelling headline, reader problem, focused thesis, 3-4 structured body points, and an actionable takeaway.
 - Ground all facts, strategies, and principles strictly in the <evidence> excerpts above.
-- Cite the source of every claim directly in the text (e.g., [Filename, Page X]).
+- Cite the source of every claim directly in the text (e.g., [Episode Title] or [Filename, Page X]).
 - Do not invent quotes or stats not present in the excerpts.
 """
             grounded = True

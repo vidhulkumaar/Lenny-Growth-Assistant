@@ -9,6 +9,7 @@ class WritingSkillInput(BaseModel):
     format_style: Optional[str] = Field("Atomic Essay", description="Writing format (Atomic Essay, Framework Breakdown, Actionable Steps)")
     tone: Optional[str] = Field("Clear, compelling, direct, and actionable", description="Voice and tone")
     document_ids: List[UUID] = Field(default_factory=list, description="Documents to use as evidence sources")
+    include_transcripts: bool = Field(True, description="Whether to include Lenny's Podcast transcripts in evidence retrieval")
 
 class WritingSkillResult(BaseModel):
     content: str

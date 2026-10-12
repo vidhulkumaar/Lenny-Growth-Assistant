@@ -52,9 +52,11 @@ class RetrievalTool:
         query: str,
         document_ids: Optional[List[UUID]] = None,
         top_k: int = 5,
+        include_transcripts: bool = False,
     ) -> RetrievalResult:
         """
         Execute the retrieval against pgvector using the existing embedding and search pipeline.
+        Supports both user-uploaded documents and Lenny's Podcast transcripts.
         Ensures strict grounding, input validation, and stable citation generation.
         """
         # 1. Input sanitization & validation
@@ -69,7 +71,7 @@ class RetrievalTool:
             )
 
         doc_ids = document_ids or []
-        if not doc_ids:
+        if not doc_ids and not include_transcripts:
             return RetrievalResult(
                 query=sanitized_query,
                 chunks=[],
@@ -82,7 +84,13 @@ class RetrievalTool:
 
         # 2. Query execution via existing service
         try:
-            raw_chunks = retrieve_relevant_chunks(db, sanitized_query, doc_ids, top_k=k)
+            raw_chunks = retrieve_relevant_chunks(
+                db,
+                sanitized_query,
+                doc_ids,
+                top_k=k,
+                include_transcripts=include_transcripts,
+            )
         except Exception as e:
             logger.error(f"RetrievalTool error during pgvector query: {e}")
             return RetrievalResult(
@@ -100,18 +108,22 @@ class RetrievalTool:
                 chunks=[],
                 citations=[],
                 is_empty=True,
-                message="No relevant excerpts found in the selected documents."
+                message="No relevant excerpts found in the selected documents or podcast transcripts."
             )
 
         chunks: List[RetrievedChunk] = []
         citations: List[Citation] = []
 
         for item in raw_chunks:
+            source_title = item.get("title") or item.get("filename", "Source")
+            source_key = item.get("source_key") or item.get("document_id", "")
+            page_num = item.get("page_number")
+
             chunk_obj = RetrievedChunk(
                 chunk_id=item["chunk_id"],
-                document_id=item["document_id"],
-                filename=item["filename"],
-                page_number=item["page_number"],
+                document_id=item.get("document_id", ""),
+                filename=source_title,
+                page_number=page_num,
                 content=item["content"],
             )
             chunks.append(chunk_obj)
@@ -122,9 +134,9 @@ class RetrievalTool:
 
             citations.append(
                 Citation(
-                    source_key=item["document_id"],
-                    title=item["filename"],
-                    page_number=item["page_number"],
+                    source_key=source_key,
+                    title=source_title,
+                    page_number=page_num,
                     excerpt=excerpt_preview,
                 )
             )

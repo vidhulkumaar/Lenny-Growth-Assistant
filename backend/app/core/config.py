@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     AGENT_MODEL: str = "qwen3:4b"
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     ANTHROPIC_API_KEY: str | None = None
+    CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"
     AGENT_TIMEOUT_SECONDS: float = 120.0
-    AGENT_TOP_K: int = 5
+    AGENT_TOP_K: int = 10
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

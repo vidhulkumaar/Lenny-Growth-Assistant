@@ -21,6 +21,8 @@ class ArtifactGenerationInput(BaseModel):
     artifact_type: Optional[str] = Field("markdown", description="Type of artifact: 'markdown' or 'html'")
     title: Optional[str] = Field(None, description="Optional custom title for the artifact")
     document_ids: List[uuid.UUID] = Field(default_factory=list, description="Document IDs to ground the artifact upon")
+    provider: Optional[str] = Field(None, description="Optional model provider: 'ollama' or 'claude'")
+    model: Optional[str] = Field(None, description="Optional specific model override")
 
 class ArtifactGenerationResult(BaseModel):
     title: str

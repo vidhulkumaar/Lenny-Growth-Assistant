@@ -1,4 +1,4 @@
-import type { Session, Message, Artifact } from '../types';
+import type { Session, Message, Artifact, ProvidersResponse, LLMProvider } from '../types';
 
 export interface DocumentInfo {
   id: string;
@@ -9,6 +9,20 @@ export interface DocumentInfo {
 }
 
 export class ApiService {
+  static async getProviders(): Promise<ProvidersResponse | null> {
+    try {
+      const res = await fetch('/api/v1/chat/providers');
+      if (!res.ok) {
+        console.error('Failed to load LLM providers');
+        return null;
+      }
+      return await res.json();
+    } catch (e) {
+      console.error('Error fetching providers:', e);
+      return null;
+    }
+  }
+
   static async getSessions(): Promise<Session[]> {
     const res = await fetch('/api/v1/chat/sessions');
     if (!res.ok) {
@@ -51,8 +65,11 @@ export class ApiService {
     documentIds: string[] = [],
     mode: "chat" | "ship30" | "artifact" = "chat",
     writingOptions?: Record<string, any>,
-    artifactOptions?: Record<string, any>
-  ): Promise<{ session_id: string; response: Message; artifact?: Artifact }> {
+    artifactOptions?: Record<string, any>,
+    provider?: LLMProvider | string,
+    model?: string,
+    temperature?: number
+  ): Promise<{ session_id: string; response: Message; artifact?: Artifact; provider?: string; model?: string }> {
     const payload: any = {
       content,
       document_ids: documentIds,
@@ -67,6 +84,15 @@ export class ApiService {
     if (artifactOptions) {
       payload.artifact_options = artifactOptions;
     }
+    if (provider) {
+      payload.provider = provider;
+    }
+    if (model) {
+      payload.model = model;
+    }
+    if (temperature !== undefined) {
+      payload.temperature = temperature;
+    }
     
     const res = await fetch('/api/v1/chat/message', {
       method: 'POST',
@@ -77,7 +103,8 @@ export class ApiService {
     });
     
     if (!res.ok) {
-      throw new Error("Failed to send message");
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.detail || "Failed to send message");
     }
     
     return await res.json();
@@ -114,5 +141,47 @@ export class ApiService {
     if (!res.ok) {
       throw new Error("Failed to delete document");
     }
+  }
+
+  static async deleteSession(sessionId: string): Promise<void> {
+    const res = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      throw new Error("Failed to delete conversation");
+    }
+  }
+
+  static async batchDeleteSessions(sessionIds: string[]): Promise<{ status: string; deleted_count: number }> {
+    const res = await fetch('/api/v1/chat/sessions/batch-delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ session_ids: sessionIds }),
+    });
+    if (!res.ok) {
+      throw new Error("Failed to delete selected conversations");
+    }
+    return await res.json();
+  }
+
+  static async clearAllHistory(): Promise<{ status: string; deleted_sessions: number; deleted_messages: number }> {
+    const res = await fetch('/api/v1/chat/history/clear', {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      throw new Error("Failed to clear chat and search history");
+    }
+    return await res.json();
+  }
+
+  static async getAllArtifacts(): Promise<Artifact[]> {
+    const res = await fetch('/api/v1/chat/artifacts');
+    if (!res.ok) {
+      console.error("Failed to load all artifacts");
+      return [];
+    }
+    return await res.json();
   }
 }

@@ -1,3 +1,19 @@
+export type LLMProvider = "ollama" | "claude";
+
+export interface ProviderDetail {
+  id: LLMProvider;
+  name: string;
+  type: "local" | "cloud";
+  model: string;
+  available: boolean;
+  description: string;
+}
+
+export interface ProvidersResponse {
+  active_provider: LLMProvider;
+  providers: ProviderDetail[];
+}
+
 export interface Citation {
   source_key: string;
   title: string;
@@ -12,6 +28,8 @@ export interface Message {
   content: string;
   created_at: string;
   citations?: Citation[];
+  provider?: LLMProvider | string;
+  model?: string;
 }
 
 export interface Session {
@@ -30,4 +48,5 @@ export interface Artifact {
   created_at: string;
   citations?: Citation[];
 }
+
 

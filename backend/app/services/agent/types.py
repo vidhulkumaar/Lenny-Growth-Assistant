@@ -12,7 +12,7 @@ class RetrievedChunk(BaseModel):
     chunk_id: str
     document_id: str
     filename: str
-    page_number: int
+    page_number: Optional[int] = None
     content: str
 
 class RetrievalInput(BaseModel):

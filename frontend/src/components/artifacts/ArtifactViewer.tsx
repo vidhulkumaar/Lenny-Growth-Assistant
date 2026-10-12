@@ -25,6 +25,7 @@ interface ArtifactViewerProps {
   isOpen: boolean
   onClose: () => void
   isLoading?: boolean
+  className?: string
 }
 
 export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
@@ -34,6 +35,7 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   isOpen,
   onClose,
   isLoading = false,
+  className,
 }) => {
   const [copied, setCopied] = useState(false)
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview")
@@ -89,7 +91,8 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     <aside
       className={cn(
         "flex flex-col bg-white border-l border-slate-200 transition-all duration-300 ease-in-out shadow-xl lg:shadow-none",
-        "fixed inset-0 z-50 lg:static lg:inset-auto lg:z-10 lg:w-[540px] xl:w-[640px] h-full"
+        "fixed inset-0 z-50 lg:static lg:inset-auto lg:z-10 lg:w-[540px] xl:w-[640px] h-full",
+        className
       )}
       aria-label="Artifact Viewer"
     >

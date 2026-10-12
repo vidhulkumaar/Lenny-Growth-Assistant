@@ -335,3 +335,94 @@ Produce a complete, polished {artifact_type.upper()} artifact.
             grounded=grounded,
             is_empty_evidence=False,
         )
+
+    @classmethod
+    async def update_artifact(
+        cls,
+        model_adapter: BaseModelAdapter,
+        existing_artifact: any,
+        instruction: str,
+    ) -> ArtifactGenerationResult:
+        """
+        Updates an existing artifact based on follow-up user instructions
+        (e.g. changing theme, adding charts or sections, tweaking layout).
+        """
+        artifact_type = getattr(existing_artifact, "artifact_type", "markdown").lower()
+        title = getattr(existing_artifact, "title", "Artifact")
+        existing_content = getattr(existing_artifact, "content", "")
+
+        if artifact_type == "html":
+            system_prompt = HTML_SYSTEM_PROMPT
+            user_prompt = f"""You are modifying an existing HTML/CSS artifact based on the user's follow-up request.
+
+EXISTING ARTIFACT:
+Title: {title}
+Current HTML Content:
+{existing_content}
+
+USER UPDATE REQUEST:
+{instruction}
+
+RULES FOR MODIFICATION:
+1. Apply the user's requested changes accurately (e.g. dark theme, new chart, updated metrics, layout adjustment).
+2. Return a complete, valid standalone HTML document starting with <!DOCTYPE html> containing <html>, <head>, <style>, and <body>.
+3. Keep all CSS self-contained inside <style>.
+4. If dark mode is requested: use sleek dark slate/zinc background (#0f172a / #18181b), dark card surfaces (#1e293b), light text (#f8fafc), and crisp accents.
+5. If adding charts: use beautiful inline SVG or CSS-based bar/metric charts.
+6. ABSOLUTELY NO JAVASCRIPT: No <script> tags or inline event handlers. Pure HTML and CSS only.
+7. Return ONLY the complete HTML document without introductory or closing conversational text.
+"""
+        else:
+            system_prompt = MARKDOWN_SYSTEM_PROMPT
+            user_prompt = f"""You are modifying an existing Markdown artifact based on the user's follow-up request.
+
+EXISTING ARTIFACT:
+Title: {title}
+Current Content:
+{existing_content}
+
+USER UPDATE REQUEST:
+{instruction}
+
+RULES FOR MODIFICATION:
+1. Integrate the requested updates or additions into the document.
+2. Maintain structured, production-grade Markdown formatting.
+3. Return the complete updated Markdown document.
+"""
+
+        try:
+            raw_content = await model_adapter.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+            )
+        except ModelProviderError as mpe:
+            logger.error(f"Model provider error updating artifact: {mpe}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in artifact updater: {e}", exc_info=True)
+            raise
+
+        if artifact_type == "html":
+            final_content = sanitize_html_artifact(raw_content)
+        else:
+            final_content = re.sub(r"^```(?:markdown|md)?\s*", "", raw_content.strip(), flags=re.IGNORECASE)
+            final_content = re.sub(r"\s*```$", "", final_content)
+
+        updated_title = extract_artifact_title(
+            content=final_content,
+            prompt=instruction,
+            artifact_type=artifact_type,
+            custom_title=title,
+        )
+
+        existing_citations = getattr(existing_artifact, "citations", None) or []
+
+        return ArtifactGenerationResult(
+            title=updated_title,
+            artifact_type=artifact_type,
+            content=final_content,
+            citations=existing_citations,
+            grounded=True,
+            is_empty_evidence=False,
+        )
+

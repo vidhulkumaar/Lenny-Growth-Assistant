@@ -43,6 +43,34 @@ class ArtifactRepository:
             ).scalars().all()
         )
 
+    def list_all_artifacts(self) -> List[Artifact]:
+        return list(
+            self.db.execute(
+                select(Artifact)
+                .order_by(Artifact.created_at.desc())
+            ).scalars().all()
+        )
+
+    def update_artifact(
+        self,
+        artifact_id: UUID,
+        content: Optional[str] = None,
+        title: Optional[str] = None,
+        citations: Optional[list] = None,
+    ) -> Optional[Artifact]:
+        artifact = self.get_artifact(artifact_id)
+        if not artifact:
+            return None
+        if content is not None:
+            artifact.content = content
+        if title is not None:
+            artifact.title = title
+        if citations is not None:
+            artifact.citations = citations
+        self.db.commit()
+        self.db.refresh(artifact)
+        return artifact
+
     def delete_artifact(self, artifact_id: UUID) -> bool:
         artifact = self.get_artifact(artifact_id)
         if not artifact:
@@ -50,3 +78,4 @@ class ArtifactRepository:
         self.db.delete(artifact)
         self.db.commit()
         return True
+
